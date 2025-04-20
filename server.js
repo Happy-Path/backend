@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
+const cors = require('cors'); // Import CORS
 
 // Load environment variables
 dotenv.config();
@@ -12,6 +13,12 @@ const app = express();
 
 // Middleware
 app.use(bodyParser.json());
+
+// CORS configuration
+app.use(cors({
+  origin: 'http://localhost:3000',  // Allow frontend requests from localhost:3000
+  credentials: true,               // Allow credentials (cookies/session-based authentication)
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);
