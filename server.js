@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
 const emotionRoutes = require('./routes/emotion');
+const sessionRoutes = require('./routes/sessions');
+const reportRoutes = require('./routes/reports');
 const cors = require('cors');
 // Load environment variables
 dotenv.config();
@@ -36,6 +38,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/emotion', emotionRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/reports', reportRoutes);
 
 
 // Optional fallback route for unknown endpoints
