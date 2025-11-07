@@ -14,6 +14,8 @@ const emotionRoutes = require('./routes/emotion');
 const sessionRoutes = require('./routes/sessions');
 const reportRoutes = require('./routes/reports');
 const lessonRoutes = require('./routes/lessonRoutes');
+const progressRoutes = require('./routes/progress');
+
 
 // Initialize the app
 const app = express();
@@ -48,6 +50,8 @@ app.use('/api/emotion', emotionRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/lessons', lessonRoutes);
+app.use('/api/progress', progressRoutes);
+
 
 // Fallback route for unknown endpoints
 app.use((req, res) => {
