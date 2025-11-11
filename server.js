@@ -15,6 +15,8 @@ const sessionRoutes = require('./routes/sessions');
 const reportRoutes = require('./routes/reports');
 const lessonRoutes = require('./routes/lessonRoutes');
 const progressRoutes = require('./routes/progress');
+const teacherRoutes = require('./routes/teacher');
+const quizRoutes = require('./routes/quizzes');
 
 
 // Initialize the app
@@ -51,6 +53,8 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/teacher', teacherRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 
 // Fallback route for unknown endpoints

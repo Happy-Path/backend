@@ -51,4 +51,19 @@ router.post("/:id/events", roleGuard(["student"]), async (req, res) => {
     }
 });
 
+// List sessions for a specific user (teacher/parent/student)
+router.get("/user/:userId", roleGuard(["teacher","parent","student"]), async (req, res) => {
+    try {
+        // TODO: ACL — ensure teacher/parent is allowed to see this user's sessions
+        const items = await Session.find({ userId: req.params.userId })
+            .sort({ startedAt: -1 })
+            .select("_id userId lessonId startedAt endedAt deviceInfo")
+            .lean();
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
 module.exports = router;
