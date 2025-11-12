@@ -17,7 +17,7 @@ const lessonRoutes = require('./routes/lessonRoutes');
 const progressRoutes = require('./routes/progress');
 const teacherRoutes = require('./routes/teacher');
 const quizRoutes = require('./routes/quizzes');
-
+const adminRoutes = require('./routes/adminRoutes');
 
 // Initialize the app
 const app = express();
@@ -55,7 +55,7 @@ app.use('/api/lessons', lessonRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/quizzes', quizRoutes);
-
+app.use('/api/admin', adminRoutes);
 
 // Fallback route for unknown endpoints
 app.use((req, res) => {
