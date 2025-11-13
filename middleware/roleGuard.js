@@ -1,4 +1,4 @@
-// Simple RBAC helper that works with your `protect` middleware
+// middleware/roleGuard.js
 module.exports = function roleGuard(roles = []) {
     return (req, res, next) => {
         if (!req.user || !roles.includes(req.user.role)) {

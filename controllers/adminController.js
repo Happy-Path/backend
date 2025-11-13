@@ -1,4 +1,3 @@
-// controllers/adminController.js
 const User = require('../models/User');
 
 // Create ANY user (including admin). Admin-only route.
@@ -49,7 +48,7 @@ exports.adminListUsers = async (req, res) => {
   }
 };
 
-// Update a user's role (e.g., promote to admin)
+// Update a user's role (kept for completeness)
 exports.adminUpdateRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -58,9 +57,9 @@ exports.adminUpdateRole = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
     const user = await User.findByIdAndUpdate(
-      id,
-      { role, updatedBy: req.user._id },
-      { new: true }
+        id,
+        { role, updatedBy: req.user._id },
+        { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'Role updated', user });
@@ -75,12 +74,57 @@ exports.adminToggleActive = async (req, res) => {
     const { id } = req.params;
     const { isActive } = req.body; // boolean
     const user = await User.findByIdAndUpdate(
-      id,
-      { isActive: !!isActive, updatedBy: req.user._id },
-      { new: true }
+        id,
+        { isActive: !!isActive, updatedBy: req.user._id },
+        { new: true }
     ).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'Account status updated', user });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+// NEW: Update basic fields (name/email/isActive)
+exports.adminUpdateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = {};
+    if (typeof req.body.name === 'string') updates.name = req.body.name;
+    if (typeof req.body.email === 'string') updates.email = req.body.email;
+    if (typeof req.body.isActive === 'boolean') updates.isActive = req.body.isActive;
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields to update' });
+    }
+
+    // If email is changing, check uniqueness
+    if (updates.email) {
+      const exists = await User.findOne({ email: updates.email, _id: { $ne: id } });
+      if (exists) return res.status(409).json({ message: 'Email already in use' });
+    }
+
+    updates.updatedBy = req.user._id;
+
+    const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ message: 'User updated', user });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+// Reset user password to "password123"
+exports.adminResetPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select('+password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.password = 'password123'; // hashed by pre('save')
+    user.updatedBy = req.user._id;
+    await user.save();
+
+    res.json({ message: 'Password reset to default for this user' });
   } catch (e) {
     res.status(500).json({ message: e.message });
   }
