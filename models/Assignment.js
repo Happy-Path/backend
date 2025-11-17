@@ -1,3 +1,4 @@
+// models/Assignment.js
 const mongoose = require('mongoose');
 
 const AssignmentSchema = new mongoose.Schema({

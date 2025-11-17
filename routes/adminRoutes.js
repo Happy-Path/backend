@@ -1,6 +1,8 @@
 // routes/adminRoutes.js
-const express = require('express');
-const { protect, requireRole } = require('../middleware/authMiddleware');
+const express = require("express");
+const { protect } = require("../middleware/authMiddleware");
+const roleGuard = require("../middleware/roleGuard");
+
 const {
   adminCreateUser,
   adminListUsers,
@@ -8,18 +10,31 @@ const {
   adminToggleActive,
   adminResetPassword,
   adminUpdateUser,
-} = require('../controllers/adminController');
+} = require("../controllers/adminController");
+
+const {
+  listAssignments,
+  assignStudents,
+  unassign,
+} = require("../controllers/parentStudentAssignmentController");
 
 const router = express.Router();
 
-// All admin routes require admin role
-router.use(protect, requireRole('admin'));
+// admin only
+router.use(protect);
+router.use(roleGuard(["admin"]));
 
-router.post('/users', adminCreateUser);                 // create any user incl. admin
-router.get('/users', adminListUsers);                   // list users
-router.patch('/users/:id', adminUpdateUser);            // update name/email/isActive
-router.patch('/users/:id/role', adminUpdateRole);       // change role (kept)
-router.patch('/users/:id/active', adminToggleActive);   // enable/disable (legacy)
-router.patch('/users/:id/reset-password', adminResetPassword); // reset password -> "password123"
+// -------- USERS --------
+router.post("/users", adminCreateUser);               // create any user incl. admin
+router.get("/users", adminListUsers);                 // list users
+router.patch("/users/:id", adminUpdateUser);          // update name/email/isActive
+router.patch("/users/:id/active", adminToggleActive); // enable/disable
+router.patch("/users/:id/reset-password", adminResetPassword); // reset password
+router.patch("/users/:id/role", adminUpdateRole);     // change role
+
+// -------- PARENT–STUDENT ASSIGNMENTS --------
+router.get("/assignments", listAssignments);
+router.post("/assignments", assignStudents);
+router.delete("/assignments/:id", unassign);
 
 module.exports = router;

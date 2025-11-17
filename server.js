@@ -19,6 +19,7 @@ const quizRoutes = require('./routes/quizzes');
 const adminRoutes = require('./routes/adminRoutes');   // keep if file exists
 const userRoutes = require('./routes/userRoutes');     // keep if file exists
 const messageRoutes = require('./routes/messageRoutes'); // keep if file exists
+const parentRoutes = require('./routes/parentRoutes');
 
 const app = express();
 
@@ -62,6 +63,8 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/admin', adminRoutes);     // remove if not using admin
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/parent', parentRoutes);
+
 
 // 404
 app.use((req, res) => {

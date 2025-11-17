@@ -1,3 +1,4 @@
+// models/Event.js
 const mongoose = require("mongoose");
 
 const eventSchema = new mongoose.Schema({

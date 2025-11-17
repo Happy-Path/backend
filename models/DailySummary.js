@@ -1,3 +1,4 @@
+// models/DailySummary.js
 const mongoose = require("mongoose");
 
 const dailySummarySchema = new mongoose.Schema({

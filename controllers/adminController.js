@@ -1,3 +1,4 @@
+// controllers/adminController.js
 const User = require('../models/User');
 
 // Create ANY user (including admin). Admin-only route.
