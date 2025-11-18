@@ -25,9 +25,7 @@ async function ensureProgressAccess(req, res, userId) {
     if (role === "parent") {
         const allowed = await parentCanAccessStudent(meId, userId);
         if (!allowed) {
-            res
-                .status(403)
-                .json({ message: "Not authorized for this child" });
+            res.status(403).json({ message: "Not authorized for this child" });
             return false;
         }
     }
@@ -45,37 +43,106 @@ router.post("/ping", roleGuard(["student"]), async (req, res) => {
             durationSec = 0,
             completed = false,
         } = req.body || {};
-        if (!lessonId)
-            return res
-                .status(400)
-                .json({ message: "lessonId is required" });
 
-        const clamp = (n, min, max) =>
-            Math.max(min, Math.min(max, n || 0));
-        const dur = clamp(durationSec, 0, 24 * 3600);
-        const pos = clamp(positionSec, 0, dur || 24 * 3600);
-        const pct = dur ? Math.round((pos / dur) * 100) : 0;
-        const isDone = completed || pct >= 95;
+        if (!lessonId) {
+            return res.status(400).json({ message: "lessonId is required" });
+        }
 
-        const doc = await Progress.findOneAndUpdate(
-            { userId: req.user.id, lessonId },
-            {
-                $set: {
-                    durationSec: Math.max(dur, 0),
-                    positionSec: Math.max(pos, 0),
-                    percent: Math.min(100, Math.max(pct, 0)),
-                    completed: isDone,
-                    lastPingAt: new Date(),
-                },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        const clamp = (n, min, max) => Math.max(min, Math.min(max, n || 0));
+        const userId = req.user.id;
+
+        // Incoming values from client
+        const incomingDur = clamp(durationSec, 0, 24 * 3600);
+        const incomingPos = clamp(positionSec, 0, incomingDur || 24 * 3600);
+
+        // Load existing progress (if any) to keep "furthest" watch position
+        const existing = await Progress.findOne({ userId, lessonId });
+
+        let dur = incomingDur;
+        let pos = incomingPos;
+        let prevPercent = 0;
+        let prevCompleted = false;
+
+        if (existing) {
+            // keep the longest known duration (in case early pings had 0 duration)
+            dur = Math.max(existing.durationSec || 0, incomingDur);
+
+            // If duration is still 0 but the existing doc had a value, use that
+            if (!dur && existing.durationSec) {
+                dur = existing.durationSec;
+            }
+
+            // keep the furthest position the student has ever reached
+            pos = Math.max(existing.positionSec || 0, incomingPos);
+
+            prevPercent = existing.percent || 0;
+            prevCompleted = !!existing.completed;
+        }
+
+        // Recalculate percent based on furthest position & best duration
+        let pct = dur ? Math.round((pos / dur) * 100) : 0;
+
+        // Never let percent go backwards
+        pct = Math.min(100, Math.max(pct, prevPercent));
+
+        // Completion logic
+        let isDone = prevCompleted || completed || pct >= 95;
+
+        if (isDone) {
+            // Once we consider it "done", treat as fully complete
+            isDone = true;
+            pct = 100;
+
+            // If duration is known, we can snap position to full duration
+            if (dur) {
+                pos = Math.max(pos, dur);
+            }
+        }
+
+        let doc;
+        if (!existing) {
+            // Create new record
+            doc = await Progress.create({
+                userId,
+                lessonId,
+                durationSec: dur,
+                positionSec: pos,
+                percent: pct,
+                completed: isDone,
+                lastPingAt: new Date(),
+            });
+        } else {
+            // Update existing record
+            existing.durationSec = dur;
+            existing.positionSec = pos;
+            existing.percent = pct;
+            existing.completed = isDone;
+            existing.lastPingAt = new Date();
+            doc = await existing.save();
+        }
 
         res.json(doc);
     } catch (err) {
+        console.error("Progress ping failed:", err);
         res.status(500).json({ message: err.message });
     }
 });
+
+// ✅ NEW: get progress for the currently logged-in student
+router.get(
+    "/me",
+    roleGuard(["student"]),
+    async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const items = await Progress.find({ userId }).lean();
+            res.json(items);
+        } catch (err) {
+            console.error("Get /progress/me failed:", err);
+            res.status(500).json({ message: err.message });
+        }
+    }
+);
 
 // List progress for a user (student/parent/teacher)
 router.get(
