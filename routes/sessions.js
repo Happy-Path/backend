@@ -7,8 +7,11 @@ const roleGuard = require("../middleware/roleGuard");
 const {
     parentCanAccessStudent,
 } = require("../controllers/parentStudentAssignmentController");
-
 const router = express.Router();
+const Notification = require("../models/Notification");
+const ParentStudentAssignment = require("../models/ParentStudentAssignment");
+const User = require("../models/User");
+const Lesson = require("../models/Lesson");
 router.use(protect);
 
 // Helper: ACL for routes that read sessions by userId
@@ -114,5 +117,94 @@ router.get(
         }
     }
 );
+
+// Low-attention / negative-emotion alert → notify parent
+// POST /api/sessions/:id/low-attention-alert
+// body: { reason: "multiple_episodes" | "long_episode" | "student_break" }
+router.post("/:id/low-attention-alert", roleGuard(["student"]), async (req, res) => {
+    try {
+        const sessionId = req.params.id;
+        const { reason } = req.body || {};
+
+        const session = await Session.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ message: "Session not found" });
+        }
+
+        // Safety: student can only raise alert for their own session
+        if (session.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized for this session" });
+        }
+
+        // Find parent for this student
+        const assignment = await ParentStudentAssignment.findOne({
+            studentId: session.userId,
+        }).populate("parentId");
+
+        if (!assignment || !assignment.parentId) {
+            // No parent assigned → just return OK; nothing to notify
+            return res.json({ message: "No parent assignment; alert skipped" });
+        }
+
+        const parent = assignment.parentId;
+
+        // Find a system admin sender
+        const adminSender = await User.findOne({ role: "admin", isActive: true })
+            .sort({ createdAt: 1 })
+            .lean();
+
+        if (!adminSender) {
+            console.error("No admin user found to send attention alert");
+            return res.status(500).json({ message: "No admin user to send alert" });
+        }
+
+        // Optional: enrich with lesson title
+        let lessonTitle = "this lesson";
+        if (session.lessonId) {
+            try {
+                const lesson = await Lesson.findById(session.lessonId).select("title").lean();
+                if (lesson?.title) lessonTitle = lesson.title;
+            } catch {
+                // ignore
+            }
+        }
+
+        const childName = req.user.name || "your child";
+
+        let title = `${childName} needed extra support today`;
+        let message =
+            `Today during "${lessonTitle}", ${childName} showed signs of low attention or sadness. ` +
+            `Consider reviewing this lesson together or trying again when they are more rested.`;
+
+        if (reason === "student_break") {
+            title = `${childName} asked for a small break`;
+            message =
+                `During "${lessonTitle}", ${childName} pressed "I want a small break". ` +
+                `You may want to check in and see how they are feeling.`;
+        } else if (reason === "long_episode") {
+            title = `${childName} struggled to re-focus during "${lessonTitle}"`;
+            message =
+                `${childName} stayed in a low-attention or upset state for a while during "${lessonTitle}". ` +
+                `A gentle break or trying again later might help.`;
+        }
+
+        await Notification.create({
+            title,
+            message,
+            type: "attention_alert",
+            purpose: "system",
+            sender: adminSender._id,
+            senderRole: "admin",
+            recipient: parent._id,
+            recipientRole: "parent",
+            isRead: false,
+        });
+
+        res.json({ message: "Alert sent to parent" });
+    } catch (err) {
+        console.error("low-attention-alert error", err);
+        res.status(500).json({ message: "Failed to send attention alert" });
+    }
+});
 
 module.exports = router;
